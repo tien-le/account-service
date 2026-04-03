@@ -1,0 +1,175 @@
+# restart: unless-stopped
+
+x-kafka-env: &kafka-env
+  KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+
+  # Replication & reliability
+  KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+  KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+  KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+  KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+  KAFKA_MIN_INSYNC_REPLICAS: 2
+
+  # Performance tuning
+  KAFKA_NUM_PARTITIONS: 3
+  KAFKA_COMPRESSION_TYPE: producer
+  KAFKA_LOG_RETENTION_HOURS: 168
+
+  # Listener config (IMPORTANT)
+  KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+  KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+
+x-kafka-common: &kafka-common
+  image: confluentinc/cp-kafka:7.7.8
+  restart: on-failure
+  depends_on:
+    zookeeper:
+      condition: service_healthy
+  networks:
+    - kafka-net
+
+services:
+
+  # ----------------------------
+  # ZOOKEEPER
+  # ----------------------------
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.7.8
+    container_name: zookeeper
+    restart: on-failure
+    networks:
+      - kafka-net
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------
+  # KAFKA BROKER 1
+  # ----------------------------
+  kafka-1:
+    <<: *kafka-common
+    container_name: kafka-1
+    ports:
+      - "29092:29092"
+    environment:
+      <<: *kafka-env
+      KAFKA_BROKER_ID: 1
+
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-1:9092,EXTERNAL://localhost:29092
+    volumes:
+      - kafka_1_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------
+  # KAFKA BROKER 2
+  # ----------------------------
+  kafka-2:
+    <<: *kafka-common
+    container_name: kafka-2
+    ports:
+      - "29093:29093"
+    environment:
+      <<: *kafka-env
+      KAFKA_BROKER_ID: 2
+
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9093,EXTERNAL://0.0.0.0:29093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-2:9093,EXTERNAL://localhost:29093
+    volumes:
+      - kafka_2_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9093"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------
+  # KAFKA BROKER 3
+  # ----------------------------
+  kafka-3:
+    <<: *kafka-common
+    container_name: kafka-3
+    ports:
+      - "29094:29094"
+    environment:
+      <<: *kafka-env
+      KAFKA_BROKER_ID: 3
+
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9094,EXTERNAL://0.0.0.0:29094
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-3:9094,EXTERNAL://localhost:29094
+    volumes:
+      - kafka_3_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9094"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------
+  # KAFDROP (UI)
+  # ----------------------------
+  kafdrop:
+    image: obsidiandynamics/kafdrop:4.2.0
+    container_name: kafdrop
+    restart: on-failure
+    depends_on:
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+      kafka-3:
+        condition: service_healthy
+    networks:
+      - kafka-net
+    ports:
+      - "9000:9000"
+    environment:
+      KAFKA_BROKERCONNECT: kafka-1:9092,kafka-2:9093,kafka-3:9094
+      JVM_OPTS: "-Xms128M -Xmx256M"
+      SERVER_SERVLET_CONTEXTPATH: "/"
+
+  # ----------------------------
+  # OPTIONAL: INIT TOPIC
+  # ----------------------------
+  kafka-init:
+    image: confluentinc/cp-kafka:7.7.8
+    depends_on:
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+      kafka-3:
+        condition: service_healthy
+    networks:
+      - kafka-net
+    entrypoint: >
+      sh -c "
+      kafka-topics --create
+      --if-not-exists
+      --topic test-topic
+      --partitions 3
+      --replication-factor 3
+      --bootstrap-server kafka-1:9092
+      "
+
+# ----------------------------
+# NETWORK + VOLUMES
+# ----------------------------
+networks:
+  kafka-net:
+
+volumes:
+  kafka_1_data:
+  kafka_2_data:
+  kafka_3_data:
