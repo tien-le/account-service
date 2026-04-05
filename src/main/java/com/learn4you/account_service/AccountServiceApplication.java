@@ -1,5 +1,6 @@
 package com.learn4you.account_service;
 
+import com.learn4you.account_service.config.EnvLoader;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -9,6 +10,9 @@ import org.springframework.context.annotation.Bean;
 public class AccountServiceApplication {
 
     public static void main(String[] args) {
+        // Load environment variables
+        EnvLoader.loadEnv();
+
         SpringApplication.run(AccountServiceApplication.class, args);
     }
 

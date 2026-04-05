@@ -1,3 +1,6 @@
+server:
+  port: 8081
+
 spring:
   application:
     name: account_service
@@ -16,9 +19,26 @@ spring:
       properties:
         enable.idempotence: true  # prevent duplicate sent
         max.in.flight.requests.per.connection: 5 # max requests in 1 connection
-    consumer:
-      # group-id: my-group                      # Consumer group ID
-      auto-offset-reset: earliest
-      # key-deserializer: "org.springframework.kafka.support.serializer.JsonDeserializer"
-      value-deserializer: "org.springframework.kafka.support.serializer.JsonDeserializer"  # JsonDeserializer, StringDeserializer
-      # enable-auto-commit: false               # (optional) manual ack
+#    consumer:
+#      # group-id: account-service-group                      # Consumer group ID
+#      auto-offset-reset: earliest
+#      # key-deserializer: "org.springframework.kafka.support.serializer.JsonDeserializer"
+#      value-deserializer: "org.apache.kafka.common.serialization.ByteArrayDeserializer"
+#      # enable-auto-commit: false               # (optional) manual ack
+
+  # Email server config
+  mail:
+    default-encoding: UTF-8
+    host: ${SMTP_HOST:smtp.gmail.com}
+    port: ${SMTP_PORT:587}
+    username: ${MAIL_ADDRESS:default@gmail.com}
+
+    # Create the app password with other (custom name)
+    # https://myaccount.google.com/u/1/apppasswords
+    password: ${MAIL_PASSWORD:empty12}
+
+    protocol: smtp
+    test-connection: false
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true

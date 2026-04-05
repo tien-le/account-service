@@ -20,6 +20,7 @@ public class AccountController {
 
     @PostMapping("/new")
     public AccountDTO createAccount(@RequestBody AccountDTO account) {
+        // Statistics information
         String message = "Account " + account.getEmail() + " has been created";
         StatisticDTO stat = new StatisticDTO(message, new Date());
 
