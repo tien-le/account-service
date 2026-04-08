@@ -164,6 +164,20 @@ services:
       --bootstrap-server kafka-1:9092
       "
 
+  # ----------------------------
+  # MICROSERVICE
+  # ----------------------------
+  account_service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: account_service
+    ports:
+      - "8081:8081"
+    restart: no
+    env_file:
+      - .env
+
 # ----------------------------
 # NETWORK + VOLUMES
 # ----------------------------
